@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: lifehub-sqlserver
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: Str0n9*P@55w0rd
+      MSSQL_PID: Express
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    networks:
+      - lifehub-network
+
+  backend:
+    build:
+      context: ./LifeHub-Backend
+      dockerfile: Dockerfile
+    container_name: lifehub-backend
+    ports:
+      - "5000:8080"
+    depends_on:
+      - sqlserver
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=sqlserver,1433;Database=LifeHubDB;User=sa;Password=Str0n9*P@55w0rd;TrustServerCertificate=True;
+      - ASPNETCORE_ENVIRONMENT=Development
+    networks:
+      - lifehub-network
+
+  frontend:
+    build:
+      context: ./LifeHub-Frontend
+      dockerfile: Dockerfile
+    container_name: lifehub-frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - lifehub-network
+
+volumes:
+  sqlserver_data:
+
+networks:
+  lifehub-network:
+    driver: bridge

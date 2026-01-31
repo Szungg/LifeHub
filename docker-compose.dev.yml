@@ -1,0 +1,48 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: lifehub-sql-dev
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Str0n9*P@55w0rd"
+      MSSQL_PID: "Developer"
+      MSSQL_AGENT_ENABLED: "false"
+    volumes:
+      - sql_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Str0n9*P@55w0rd", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - lifehub-network-dev
+
+  backend:
+    build:
+      context: ./LifeHub-Backend
+      dockerfile: Dockerfile.dev
+    container_name: lifehub-backend-dev
+    ports:
+      - "5000:8080"
+    depends_on:
+      mssql:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=mssql,1433;Database=LifeHubDB;User=sa;Password=Str0n9*P@55w0rd;TrustServerCertificate=True;
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - ./LifeHub-Backend:/app
+    working_dir: /app
+    networks:
+      - lifehub-network-dev
+
+volumes:
+  sql_data:
+
+networks:
+  lifehub-network-dev:
+    driver: bridge

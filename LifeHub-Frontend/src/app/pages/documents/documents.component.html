@@ -1,0 +1,65 @@
+<div class="documents-container">
+  <h1>Mis Documentos</h1>
+
+  <button (click)="showForm = !showForm" class="btn-primary">
+    {{ showForm ? 'Cancelar' : 'Nuevo Documento' }}
+  </button>
+
+  <div *ngIf="showForm" class="create-form card">
+    <h2>Crear Documento</h2>
+    <form [formGroup]="createForm" (ngSubmit)="onCreate()">
+      <div class="form-group">
+        <label>Título:</label>
+        <input type="text" formControlName="title" />
+      </div>
+      <div class="form-group">
+        <label>Descripción:</label>
+        <input type="text" formControlName="description" />
+      </div>
+      <div class="form-group">
+        <label>Contenido:</label>
+        <textarea formControlName="content" rows="10"></textarea>
+      </div>
+      <button type="submit" class="btn-primary" [disabled]="createForm.invalid">Crear</button>
+    </form>
+  </div>
+
+  <div *ngIf="selectedDocument" class="edit-form card">
+    <h2>Editar: {{ selectedDocument.title }}</h2>
+    <form [formGroup]="editForm" (ngSubmit)="onEdit()">
+      <div class="form-group">
+        <label>Título:</label>
+        <input type="text" formControlName="title" />
+      </div>
+      <div class="form-group">
+        <label>Descripción:</label>
+        <input type="text" formControlName="description" />
+      </div>
+      <div class="form-group">
+        <label>Contenido:</label>
+        <textarea formControlName="content" rows="10"></textarea>
+      </div>
+      <button type="submit" class="btn-primary">Guardar</button>
+      <button type="button" (click)="selectedDocument = null" class="btn-secondary">Cancelar</button>
+    </form>
+  </div>
+
+  <div *ngIf="loading" class="loading">Cargando...</div>
+
+  <div *ngIf="!loading && documents.length === 0" class="empty-state">
+    <p>No tienes documentos aún</p>
+  </div>
+
+  <div *ngIf="!loading" class="documents-list">
+    <div *ngFor="let doc of documents" class="document-card">
+      <h3>{{ doc.title }}</h3>
+      <p class="document-type">{{ getTypeText(doc.type) }}</p>
+      <p class="document-description">{{ doc.description }}</p>
+      <small>{{ doc.updatedAt | date }}</small>
+      <div class="document-actions">
+        <button (click)="selectDocument(doc)" class="btn-primary">Editar</button>
+        <button (click)="deleteDocument(doc.id)" class="btn-danger">Eliminar</button>
+      </div>
+    </div>
+  </div>
+</div>

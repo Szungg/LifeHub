@@ -1,0 +1,86 @@
+<div class="profile-container">
+  <h1>Mi Perfil</h1>
+
+  <div *ngIf="success" class="alert alert-success">{{ success }}</div>
+  <div *ngIf="error" class="alert alert-error">{{ error }}</div>
+
+  <div class="profile-card">
+    <h2>Información del Perfil</h2>
+    
+    <form [formGroup]="profileForm" (ngSubmit)="onProfileSubmit()">
+      <div class="form-group">
+        <label for="fullName">Nombre Completo:</label>
+        <input
+          type="text"
+          id="fullName"
+          formControlName="fullName"
+          placeholder="Tu nombre"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="bio">Bio:</label>
+        <textarea
+          id="bio"
+          formControlName="bio"
+          placeholder="Cuéntanos sobre ti"
+          rows="4"
+        ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="profilePictureUrl">URL de Foto de Perfil:</label>
+        <input
+          type="url"
+          id="profilePictureUrl"
+          formControlName="profilePictureUrl"
+          placeholder="https://..."
+        />
+      </div>
+
+      <button type="submit" class="btn-primary" [disabled]="loading">
+        {{ loading ? 'Guardando...' : 'Guardar Cambios' }}
+      </button>
+    </form>
+  </div>
+
+  <div class="profile-card">
+    <h2>Cambiar Contraseña</h2>
+    
+    <form [formGroup]="passwordForm" (ngSubmit)="onPasswordSubmit()">
+      <div class="form-group">
+        <label for="currentPassword">Contraseña Actual:</label>
+        <input
+          type="password"
+          id="currentPassword"
+          formControlName="currentPassword"
+          placeholder="Tu contraseña actual"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="newPassword">Nueva Contraseña:</label>
+        <input
+          type="password"
+          id="newPassword"
+          formControlName="newPassword"
+          placeholder="Nueva contraseña (min 6 caracteres)"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="confirmPassword">Confirmar Nueva Contraseña:</label>
+        <input
+          type="password"
+          id="confirmPassword"
+          formControlName="confirmPassword"
+          placeholder="Confirma tu nueva contraseña"
+        />
+      </div>
+
+      <button type="submit" class="btn-primary" [disabled]="loading">
+        {{ loading ? 'Cambiando...' : 'Cambiar Contraseña' }}
+      </button>
+    </form>
+  </div>
+</div>

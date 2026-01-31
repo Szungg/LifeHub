@@ -1,0 +1,28 @@
+namespace LifeHub.Models
+{
+    /// <summary>
+    /// Modelo para documentos (notas, archivos de texto, etc.)
+    /// Solo almacena metadatos; el contenido se maneja en el cliente
+    /// </summary>
+    public class Document
+    {
+        public int Id { get; set; }
+        public string UserId { get; set; } = null!;
+        public string Title { get; set; } = null!;
+        public string Description { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty; // Contenido del documento
+        public DocumentType Type { get; set; } // Note, TextFile, etc.
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+        // Navegación
+        public ApplicationUser User { get; set; } = null!;
+    }
+
+    public enum DocumentType
+    {
+        Note = 0,
+        TextFile = 1,
+        List = 2
+    }
+}
