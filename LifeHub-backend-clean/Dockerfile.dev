@@ -1,0 +1,9 @@
+FROM mcr.microsoft.com/dotnet/sdk:8.0
+WORKDIR /src
+COPY . .
+WORKDIR /src/LifeHub.Api
+RUN dotnet tool install --global dotnet-ef
+ENV PATH="/root/.dotnet/tools:${PATH}"
+RUN dotnet restore --no-cache
+EXPOSE 8080
+CMD ["dotnet", "watch", "run", "--no-restore", "--urls", "http://0.0.0.0:8080"]

@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  mssql:
+    image: mcr.microsoft.com/azure-sql-edge:latest
+    container_name: lifehub-sql-dev-clean
+    user: root
+    ports:
+      - "1434:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "${DB_PASSWORD}"
+      MSSQL_PID: "Developer"
+      MSSQL_AGENT_ENABLED: "false"
+    volumes:
+      - sql_data_clean:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${DB_PASSWORD}", "-Q", "SELECT 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - lifehub-network-dev-clean
+
+  backend:
+    build:
+      context: ./LifeHub-backend-clean
+      dockerfile: Dockerfile.dev
+    container_name: lifehub-backend-dev-clean
+    ports:
+      - "5001:8080"
+    depends_on:
+      mssql:
+        condition: service_healthy
+    environment:
+      - ConnectionStrings__DefaultConnection=Server=mssql,1433;Database=LifeHubDB;User=sa;Password=${DB_PASSWORD};TrustServerCertificate=True;
+      - Jwt__Key=${JWT_KEY}
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    volumes:
+      - ./LifeHub-backend-clean:/src
+    working_dir: /src/LifeHub.Api
+    networks:
+      - lifehub-network-dev-clean
+
+volumes:
+  sql_data_clean:
+
+networks:
+  lifehub-network-dev-clean:
+    driver: bridge
