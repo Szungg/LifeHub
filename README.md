@@ -10,7 +10,7 @@ Desarrollado como Trabajo de Fin de Grado del ciclo de Desarrollo de Aplicacione
 
 ### Sistema de Autenticación
 - Registro e inicio de sesión seguros
-- Las nuevas cuentas requieren activación por un administrador antes de poder iniciar sesión
+- Las nuevas cuentas se activan automáticamente al registrarse
 - Autenticación basada en JWT
 - Gestión de permisos y roles
 - Persistencia de sesión (localStorage)
@@ -102,6 +102,7 @@ Desarrollado como Trabajo de Fin de Grado del ciclo de Desarrollo de Aplicacione
 - **IHtmlSanitizer / HtmlSanitizer**: sanitización de contenido HTML inyectable y sustituible en tests
 - **BusinessRules**: límites de negocio configurables en `appsettings.json` y expuestos al frontend via `GET /api/config/limits`
 - **Result pattern (`ServiceResult<T>`)**: los servicios devuelven resultados tipados en lugar de lanzar excepciones, con mapeo automático a códigos HTTP en el controlador base
+- **DiscordNotificationService**: notificación al administrador vía webhook de Discord cuando se registra un nuevo usuario; se omite silenciosamente si `DISCORD_WEBHOOK_URL` no está configurada
 - Historial de actividad preservado incluso al eliminar cuentas de usuario
 - Validación de entrada en dos capas: Data Annotations en DTOs y restricciones de longitud en base de datos
 - Cabeceras de seguridad HTTP (`X-Content-Type-Options`, `X-Frame-Options`) y cabecera `Server` suprimida
@@ -144,6 +145,7 @@ cp .env.example .env.production  # servidor de producción
 | `BACKEND_CONTAINER` | Nombre del contenedor backend |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Credenciales para los scripts de test |
 | `DOMAIN` | Dominio para HTTPS en producción (ej. `lifehubapp.duckdns.org`). Requerido para que nginx genere el bloque SSL con Let's Encrypt. |
+| `DISCORD_WEBHOOK_URL` | URL del webhook de Discord para notificaciones de nuevos registros. Opcional — si no se define, las notificaciones se desactivan. |
 
 ## Requisitos
 
@@ -261,16 +263,18 @@ Estado verificado a fecha **2026-05-12**:
 
 - Resultado integración API: **69/69 PASS**, **0 FAIL**, **0 SKIP**.
 - Suite unitaria backend: **160 tests** (xUnit).
-- Suite unitaria frontend: **4 specs** (Jasmine/Karma).
+- Suite unitaria frontend: **8 spec files · 64 tests** (Jasmine/Karma).
 
 ### Tests unitarios (sin servidor)
 
-La suite unitaria cubre **160 casos** de backend y **4 specs** de frontend:
+La suite unitaria cubre **160 casos** de backend y **64 tests** de frontend (8 archivos spec):
 
 | Capa | Herramienta | Cobertura |
 |------|-------------|-----------|
 | Backend — 9 servicios | xUnit + EF Core InMemory | AllowedWebsite, CreativeSpace, Document, DocumentPublication, DocumentVersion, Friendship, Message, MusicFile, Recommendation, User |
-| Frontend | Jasmine / Karma | AdminService, AuthService, ConfigService, SpaceWorkspaceComponent |
+| Frontend — servicios | Jasmine / Karma | AdminService, AuthService, ConfigService, SpaceWorkspaceComponent |
+| Frontend — guards | Jasmine / Karma | AuthGuard, GuestGuard, AdminGuard |
+| Frontend — interceptor | Jasmine / Karma | JwtInterceptor (cabecera Authorization, manejo de 401) |
 
 **Windows:**
 ```powershell
@@ -328,11 +332,11 @@ El informe se guarda en `documentacion/RESULTADO_PRUEBAS_<timestamp>.md` (archiv
 
 ### Cobertura actual y plan de ampliación
 
-Actualmente se valida bien la lógica de negocio backend y los flujos críticos de API. La cobertura frontend todavía está concentrada en servicios y seguridad de renderizado Markdown.
+Actualmente se valida bien la lógica de negocio backend, los flujos críticos de API y la capa de seguridad del frontend (guards e interceptor).
 
 Objetivo de incremento de cobertura (siguiente iteración):
 
-1. **Frontend unitario (prioridad alta):** ampliar specs en `guards`, `interceptors` y componentes clave de `pages/social`, `pages/profile` y `pages/spaces`.
+1. **Frontend unitario — componentes (prioridad alta):** ampliar specs en componentes clave de `pages/social`, `pages/profile` y `pages/spaces`.
 2. **Frontend integración (prioridad alta):** empezar a poblar `LifeHub-Frontend/test/integration` con flujos de login, creación/edición de espacios y publicación/despublicación de documentos.
 3. **Frontend E2E (prioridad media):** añadir escenarios de humo en `LifeHub-Frontend/test/e2e` para navegación principal y control de permisos.
 4. **Métrica de cobertura (prioridad media):** publicar porcentaje de líneas/ramas frontend en CI con umbral mínimo (por ejemplo, 60% inicial y subida progresiva por sprint).
