@@ -10,6 +10,7 @@ Desarrollado como Trabajo de Fin de Grado del ciclo de Desarrollo de Aplicacione
 
 ### Sistema de Autenticación
 - Registro e inicio de sesión seguros
+- Las nuevas cuentas requieren activación por un administrador antes de poder iniciar sesión
 - Autenticación basada en JWT
 - Gestión de permisos y roles
 - Persistencia de sesión (localStorage)
@@ -69,8 +70,10 @@ Desarrollado como Trabajo de Fin de Grado del ciclo de Desarrollo de Aplicacione
 
 # <img width="1565" height="950" alt="image" src="https://github.com/user-attachments/assets/58dc1465-dc9d-47a7-8701-f0177660a0b5" />
 
-- Añadir, eliminar y desactivar dominios permitidos para embebidos.
-- Visualizar usuarios (en un futuro acciones)
+- Gestión de usuarios: activación de cuentas, edición, cambio de rol y eliminación
+- Gestión de dominios permitidos para embebidos
+- Registro de actividad con filtros y paginación
+- Copias de seguridad bajo demanda
 
 ### Reproductor de Música (en desarrollo)
 - Registro de archivos locales
@@ -90,26 +93,28 @@ Desarrollado como Trabajo de Fin de Grado del ciclo de Desarrollo de Aplicacione
 ## Arquitectura
 
 ### Backend (.NET 8)
-- ASP.NET Core Web API
-- Entity Framework Core
-- SQL Server
-- SignalR para chat en tiempo real
-- JWT para autenticación
+- ASP.NET Core Web API con arquitectura de capas (Controllers → Services → Data)
+- Entity Framework Core + SQL Server con migraciones automáticas al arrancar
+- SignalR para chat en tiempo real con autenticación integrada y reconexión automática
+- JWT para autenticación — sesiones validadas en cada petición, no solo al hacer login
 - AutoMapper para mapeo de DTOs
 - **SpaceAccessPolicy**: política centralizada de acceso a espacios y documentos
-- **IHtmlSanitizer / HtmlSanitizer**: sanitización de HTML inyectable (sin dependencias externas)
-- **BusinessRules**: límites de negocio centralizados en `appsettings.json` y expuestos via `GET /api/config/limits`
-- Data Annotations en todos los DTOs de entrada + restricciones `HasMaxLength` en EF Core
+- **IHtmlSanitizer / HtmlSanitizer**: sanitización de contenido HTML inyectable y sustituible en tests
+- **BusinessRules**: límites de negocio configurables en `appsettings.json` y expuestos al frontend via `GET /api/config/limits`
+- **Result pattern (`ServiceResult<T>`)**: los servicios devuelven resultados tipados en lugar de lanzar excepciones, con mapeo automático a códigos HTTP en el controlador base
+- Historial de actividad preservado incluso al eliminar cuentas de usuario
+- Validación de entrada en dos capas: Data Annotations en DTOs y restricciones de longitud en base de datos
 - Cabeceras de seguridad HTTP (`X-Content-Type-Options`, `X-Frame-Options`) y cabecera `Server` suprimida
 
 ### Frontend (Angular 19)
 - Standalone Components
-- Reactive Forms
-- HttpClient con interceptores
-- Routing y Guards
-- Services para comunicación HTTP
-- Sistema global de notificaciones toast (éxito, error, info) con animaciones de entrada/salida, límite de 5 simultáneos y truncado de mensajes largos
-- `APP_INITIALIZER` para cargar los límites de negocio desde el backend al arrancar (`ConfigService`)
+- Reactive Forms con validación cliente
+- HttpClient con interceptor JWT y gestión automática de sesión expirada
+- Protección de rutas bidireccional: los usuarios no autenticados no acceden a la app y los autenticados no pueden volver a login/registro
+- Datos pre-cargados antes de renderizar pantallas (Resolver pattern) — sin estados de carga intermedios en la navegación
+- SignalR con reconexión automática transparente al usuario
+- Sistema global de notificaciones toast (éxito, error, info) con animaciones, límite de 5 simultáneos y truncado de mensajes largos
+- `APP_INITIALIZER` para cargar los límites de negocio desde el backend antes del primer render
 
 ## Documentación técnica
 
@@ -138,6 +143,7 @@ cp .env.example .env.production  # servidor de producción
 | `SQLCMD_OPTS` | Opciones extra para sqlcmd (vacío en dev, `-C` en prod) |
 | `BACKEND_CONTAINER` | Nombre del contenedor backend |
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | Credenciales para los scripts de test |
+| `DOMAIN` | Dominio para HTTPS en producción (ej. `lifehubapp.duckdns.org`). Requerido para que nginx genere el bloque SSL con Let's Encrypt. |
 
 ## Requisitos
 
@@ -230,38 +236,30 @@ Los scripts leen la configuración del `.env` por defecto. Usa `-EnvFile` / `-e`
 
 ### Windows
 ```powershell
-# Crear backup (dev)
+# Crear backup (dev local)
 .\scripts\windows\backup-db.ps1
-
-# Crear backup (prod, en la misma máquina)
-.\scripts\windows\backup-db.ps1 -EnvFile .env.production
 
 # Restaurar
 .\scripts\windows\restore-db.ps1 -BackupFile .\backups\LifeHubDB_20260423_143000.bak
-.\scripts\windows\restore-db.ps1 -BackupFile .\backups\LifeHubDB_20260423_143000.bak -EnvFile .env.production
 ```
 
 ### Linux / macOS
 ```bash
-# Crear backup (dev)
+# Crear backup (dev local)
 ./scripts/linux/backup-db.sh
-
-# Crear backup (prod)
-./scripts/linux/backup-db.sh -e .env.production
 
 # Restaurar
 ./scripts/linux/restore-db.sh ./backups/LifeHubDB_20260423_143000.bak
-./scripts/linux/restore-db.sh -e .env.production ./backups/LifeHubDB_20260423_143000.bak
 ```
+
 
 Los backups se guardan en `backups/` con el formato `<DB_NAME>_<timestamp>.bak`.
 
 ## Pruebas
 
-Estado verificado a fecha **2026-05-10**:
+Estado verificado a fecha **2026-05-12**:
 
-- Última ejecución de integración registrada: `documentacion/RESULTADO_PRUEBAS_20260510_195344.md`.
-- Resultado integración API: **60/60 PASS**, **0 FAIL**, **0 SKIP**.
+- Resultado integración API: **69/69 PASS**, **0 FAIL**, **0 SKIP**.
 - Suite unitaria backend: **160 tests** (xUnit).
 - Suite unitaria frontend: **4 specs** (Jasmine/Karma).
 
@@ -290,23 +288,24 @@ No requiere servidor ni base de datos — se ejecutan en local en segundos.
 
 ### Tests de integración E2E (requieren servidor)
 
-La suite cubre **60 casos de prueba** sobre la API REST del backend, agrupados en siete módulos:
+La suite cubre **69 casos de prueba** sobre la API REST del backend, agrupados en ocho módulos:
 
 | Módulo | Casos | Qué se verifica |
 |--------|-------|------------------|
-| AUTH | 9 | Registro, login, activación de usuario de pruebas, validación de campos, tokens inválidos |
-| DOCS | 9 | CRUD de documentos, versionado, control de acceso |
+| AUTH | 10 | Registro, login, activación de usuario de pruebas, validación de campos y contraseña, tokens inválidos |
+| DOCS | 10 | CRUD de documentos, versionado, control de acceso, shape paginada del listado |
 | SPACES | 5 | CRUD de espacios creativos, validación de nombre |
 | COL | 3 | Permisos de colaboración (Viewer vs Editor), acceso a documentos compartidos |
 | PUBLICATIONS | 11 | Flujo completo de publicaciones, casos negativos (sin token, documento ajeno, tras despublicar) |
-| ADMIN | 19 | Acceso por rol, gestión de dominios, usuarios, backup y logs de actividad |
-| SEGURIDAD | 4 | Acceso sin token, token manipulado, cabeceras de seguridad HTTP |
+| ADMIN | 21 | Acceso por rol, gestión de dominios, usuarios, backup, logs de actividad, eliminación con relaciones activas, shape paginada |
+| MENSAJES | 3 | Conversación paginada, control de autenticación, envío de mensajes |
+| SEGURIDAD | 6 | Acceso sin token, token manipulado, cabeceras de seguridad HTTP, IDOR |
 
 Los tests crean un usuario temporal propio y lo eliminan al finalizar — la base de datos queda limpia. Los tests de administrador requieren credenciales de admin en el `.env`.
 
 ### Prerequisitos (tests E2E)
 
-- El backend debe estar en marcha (`http://localhost:5000`)
+- El backend debe estar en marcha (`http://localhost:5000` en dev, `https://lifehubapp.duckdns.org/api` en producción)
 - Las variables `ADMIN_EMAIL` y `ADMIN_PASSWORD` en el `.env` de la raíz (sin ellas, los tests de admin se omiten con SKIP)
 
 ### Ejecución automatizada (genera informe Markdown)
@@ -402,10 +401,13 @@ LifeHub/
 
 - Autenticación basada en JWT
 - Hash de contraseñas con Identity
+- **Complejidad de contraseña**: mínimo 10 caracteres, mayúscula, minúscula, dígito y carácter especial — validado tanto en el frontend (Angular Reactive Forms) como en el backend (ASP.NET Identity). Los mensajes de error del servidor se devuelven en español mediante `SpanishIdentityErrorDescriber`
 - Validación en servidor (Data Annotations en DTOs) y cliente (Angular Reactive Forms)
 - Restricciones de longitud en base de datos (EF Core `HasMaxLength`)
-- Sanitización XSS en backend: `IHtmlSanitizer` elimina `<script>`, atributos `on*=` y URIs `javascript:` antes de persistir
+- Sanitización XSS en backend: `IHtmlSanitizer` sanitiza el contenido HTML antes de persistir
+- **HTTPS en producción**: certificado Let's Encrypt gestionado con certbot y renovación automática vía systemd timer. Todas las peticiones HTTP son redirigidas a HTTPS mediante nginx
 - Cabeceras HTTP de seguridad (`X-Content-Type-Options`, `X-Frame-Options`) y cabecera `Server` suprimida
+- Rate limiting en endpoints de autenticación para mitigar ataques de fuerza bruta
 - Protección de rutas con Guards
 - No almacenamiento de contenido protegido por derechos de autor
 
@@ -415,7 +417,7 @@ LifeHub/
 - Cuando el token expira o es inválido, el backend responde `401 Unauthorized`.
 - El interceptor JWT del frontend captura `401`, ejecuta logout y redirige automáticamente a `/login`.
 - Este cierre de sesión ocurre en la siguiente petición HTTP al backend tras la expiración del token.
-- La duración del token se configura en `LifeHub-Backend/appsettings.json`, en `Jwt:ExpiresInMinutes` (valor actual: `600`).
+- La duración del token se configura en `LifeHub-Backend/appsettings.json`, en `Jwt:ExpiresInMinutes`.
 
 ## Notas Importantes
 
